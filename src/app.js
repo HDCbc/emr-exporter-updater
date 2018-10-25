@@ -7,10 +7,10 @@ const { update } = require('./updater');
 
 const logger = bunyan.createLogger({ name: 'app', level: 'debug' });
 
-const runProcess = (exePath) => {
+const runProcess = (exePath, args) => {
   logger.debug({ exePath }, 'Run process');
 
-  const process = spawn(exePath);
+  const process = spawn(exePath, args, { stdio: 'inherit' });
 
   process.stdout.on('data', (data) => {
     console.log(`stdout: ${data}`);
@@ -28,12 +28,16 @@ const runProcess = (exePath) => {
 const run = () => {
   logger.info('==================================================================================');
 
+  // Pass any command line arguments into the new process.
+  // Note that we ignore the first two (execPath and javascript file).
+  const args = process.argv.slice(2);
+
   update(API_URL, KEY_URL, EXE_FILENAME, SIG_FILENAME, (err, res) => {
     if (err) {
       return logger.fatal({ err }, 'Update failed');
     }
 
-    runProcess(EXE_FILENAME);
+    runProcess(EXE_FILENAME, args);
   });
 };
 
