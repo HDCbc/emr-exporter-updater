@@ -1,10 +1,8 @@
 const async = require('async');
-const bunyan = require('bunyan');
+const logger = require('winston');
 const fs = require('fs');
 const openpgp = require('openpgp');
 const request = require('request');
-
-const logger = bunyan.createLogger({ name: 'updater', level: 'debug' });
 
 const UPDATED_ERR = 'Remote and local signatures match. Update not required.';
 
@@ -40,7 +38,7 @@ const get = (url, encoding, cb) => {
 
     // Dont trace the body if it is binary.
     if (encoding !== null) {
-      logger.trace(body);
+      logger.silly(body);
     }
 
     return cb(null, body);
@@ -66,7 +64,7 @@ const readFile = (filepath, encoding, notFoundValue, cb) => {
 
       return cb(err);
     }
-    logger.trace(res);
+    logger.silly(res);
     return cb(null, res);
   });
 };
@@ -154,32 +152,32 @@ const writeFile = (filepath, content, cb) => {
 };
 
 const update = (apiUrl, keyUrl, exeFileName, sigFileName, callback) => {
-  async.autoInject({
+  async.auto({
     // Download the GitHub API metadata for the release (string).
     metaString: cb => get(apiUrl, 'utf8', cb),
     // Convert the metadata to a Javascript Object.
-    meta: (metaString, cb) => async.asyncify(JSON.parse)(metaString, cb),
+    meta: ['metaString', (params, cb) => async.asyncify(JSON.parse)(params.metaString, cb)],
     // Parse the Signature download url from the meta data.
-    remoteSigUrl: (meta, cb) => parseAssetUrl(meta, sigFileName, cb),
+    remoteSigUrl: ['metaString', (params, cb) => parseAssetUrl(params.meta, sigFileName, cb)],
     // Parse the Executable download url from the meta data.
-    remoteExeUrl: (remoteSigUrl, meta, cb) => parseAssetUrl(meta, exeFileName, cb),
+    remoteExeUrl: ['remoteSigUrl', 'meta', (params, cb) => parseAssetUrl(params.meta, exeFileName, cb)],
     // Download the Remote Signature.
-    remoteSig: (remoteExeUrl, remoteSigUrl, cb) => get(remoteSigUrl, 'utf8', cb),
+    remoteSig: ['remoteExeUrl', 'remoteSigUrl', (params, cb) => get(params.remoteSigUrl, 'utf8', cb)],
     // Read the Local Signature from the filesystem.
-    localSig: (remoteSig, cb) => readFile(sigFileName, 'utf8', '', cb),
+    localSig: ['remoteSig', (params, cb) => readFile(sigFileName, 'utf8', '', cb)],
     // Compare the remote and local signature. (Fails on match).
-    sigComparison: (remoteSig, localSig, cb) => compareSignatures(remoteSig, localSig, cb),
+    sigComparison: ['remoteSig', 'localSig', (params, cb) => compareSignatures(params.remoteSig, params.localSig, cb)],
     // Download the executable into memory (null encoding for binary).
-    exeContent: (sigComparison, remoteExeUrl, cb) => get(remoteExeUrl, null, cb),
+    exeContent: ['sigComparison', 'remoteExeUrl', (params, cb) => get(params.remoteExeUrl, null, cb)],
     // Download the public key for verification.
-    publicKey: (sigComparison, cb) => get(keyUrl, 'utf8', cb),
+    publicKey: ['sigComparison', (params, cb) => get(keyUrl, 'utf8', cb)],
     // Verify the executable/signature against the public key.
-    verified: (remoteSig, exeContent, publicKey, cb) =>
-      verify(remoteSig, exeContent, publicKey, cb),
+    verified: ['remoteSig', 'exeContent', 'publicKey', (params, cb) =>
+      verify(params.remoteSig, params.exeContent, params.publicKey, cb)],
     // Save the signature to the local filesystem.
-    saveSig: (verified, remoteSig, cb) => writeFile(sigFileName, remoteSig, cb),
+    saveSig: ['verified', 'remoteSig', (params, cb) => writeFile(sigFileName, params.remoteSig, cb)],
     // Save the executable to the local filesystem.
-    saveExe: (verified, exeContent, cb) => writeFile(exeFileName, exeContent, cb),
+    saveExe: ['verified', 'exeContent', (params, cb) => writeFile(exeFileName, params.exeContent, cb)],
   }, (err) => {
     if (err) {
       if (err !== UPDATED_ERR) {
