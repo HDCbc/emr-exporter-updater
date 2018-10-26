@@ -7,8 +7,6 @@ const printf = require('printf');
 const winston = require('winston');
 // require('winston-log-and-exit');
 
-// TODO Document and Clean
-
 // Extend a winston by making it expand errors when passed in as the
 // second argument (the first argument is the log level).
 function expandErrors(currLogger) {
@@ -16,7 +14,7 @@ function expandErrors(currLogger) {
   // const newLogger = Object.assign({}, currLogger);
   function log() {
     const args = Array.prototype.slice.call(arguments, 0);
-    // TODO This will only work if the 3rd argument (the first is the level) is an Error.
+    // This will only work if the 3rd argument (the first is the level) is an Error.
     if (args.length >= 3 && args[2] instanceof Error) {
       const allPropNames = Object.getOwnPropertyNames(args[2]);
       const expanded = {};
@@ -26,11 +24,6 @@ function expandErrors(currLogger) {
           expanded[p] = args[2][p];
         }
       });
-      // Dont include the stack
-      // const logPropNames = allPropNames.filter(p => p !== 'stack');
-      // const expanded =
-      // const errJson = JSON.stringify(args[2], logPropNames);
-      // args[2] = errJson;
       args[2] = expanded;
     }
     return originalLogFunc.apply(this, args);
@@ -72,25 +65,15 @@ module.exports = ((config) => {
       }
 
       const message = options.message ? options.message : '';
-
-      // TODO Clean this shit up
-      const obj = (options.meta && Object.keys(options.meta).length) ? options.meta : null;
-      let elapsedSec = '';
-      if (obj && (obj.elapsedSec || obj.elapsedSec === 0)) {
-        elapsedSec = printf('%7.3f sec', obj.elapsedSec);
-        delete obj.elapsedSec;
-      }
-
       const meta = options.meta && Object.keys(options.meta).length ? ` ${JSON.stringify(options.meta)}` : '';
+
       // Note the extra space required because of the color characters.
-      return printf('%s %-17s %-27s %-11s %s', time, lvl, message, elapsedSec, meta);
+      return printf('%s %-17s %-27s %s', time, lvl, message, meta);
     };
     return formatter;
   };
 
   const createFileTransport = (colorEnabled) => {
-    // TODO - what about recursive directories? // WHAT IF IT FAILS!!!!!!!
-
     // Create the log directory if it does not already exist
     // Because Winston is too lazy to do it. Thanks Winston.
     if (!fs.existsSync(path.dirname(filename))) {
@@ -126,5 +109,4 @@ module.exports = ((config) => {
   });
 
   winston.log = expandErrors(winston);
-  console.log('winston is configured');
 });
