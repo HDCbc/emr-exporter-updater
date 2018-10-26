@@ -23,7 +23,7 @@ const run = () => {
 
   update(API_URL, KEY_URL, EXE_FILENAME, SIG_FILENAME, (err) => {
     if (err) {
-      return logger.fatal({ err }, 'Update failed');
+      return logger.error({ err }, 'Update failed');
     }
     runProcess(EXE_FILENAME, args);
   });
