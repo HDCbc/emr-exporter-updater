@@ -151,6 +151,18 @@ const writeFile = (filepath, content, cb) => {
   fs.writeFile(filepath, content, cb);
 };
 
+/**
+ * Change the mode of a file on the local filesystem.
+ *
+ * @param {*} filepath The filepath of the file.
+ * @param {*} mode The mode to set the file to.
+ * @param {*} cb
+ */
+const setFileMode = (filepath, mode, cb) => {
+  logger.debug(`Set File Mode ${filepath} ${mode}`);
+  fs.chmod(filepath, mode, cb);
+};
+
 const update = (apiUrl, keyUrl, exeFileName, sigFileName, callback) => {
   async.auto({
     // Download the GitHub API metadata for the release (string).
@@ -178,6 +190,8 @@ const update = (apiUrl, keyUrl, exeFileName, sigFileName, callback) => {
     saveSig: ['verified', 'remoteSig', (params, cb) => writeFile(sigFileName, params.remoteSig, cb)],
     // Save the executable to the local filesystem.
     saveExe: ['verified', 'exeContent', (params, cb) => writeFile(exeFileName, params.exeContent, cb)],
+    // Set the executable file to actually be executable
+    modeExe: ['saveExe', (params, cb) => setFileMode(exeFileName, '0700', cb)],
   }, (err) => {
     if (err) {
       if (err !== UPDATED_ERR) {
