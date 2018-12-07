@@ -20,7 +20,7 @@
     "moment": "^2.22.2",
     "openpgp": "^3.0.7",
     "printf": "^0.5.1",
-    "request": "^2.85.0",
+    "request": "^2.88.0",
     "winston": "^2.4.4",
     "winston-log-and-exit": "^1.0.6"
   },
